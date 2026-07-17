@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GrowScope</title>
+<style>
+  :root { --bg:#111318; --panel:#1a1d24; --line:#2a2e38; --ink:#e8eaed; --mut:#9aa0a8; --acc:#4ade80; --bad:#f87171; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  header { display:flex; align-items:center; gap:16px; padding:10px 16px; border-bottom:1px solid var(--line); }
+  header h1 { font-size:16px; margin:0; color:var(--acc); font-weight:600; }
+  nav { display:flex; gap:4px; }
+  nav button { background:none; border:none; color:var(--mut); padding:6px 12px; cursor:pointer; font-size:14px; border-radius:6px; }
+  nav button.on { background:var(--panel); color:var(--ink); }
+  main { padding:16px; max-width:960px; margin:0 auto; }
+  section { display:none; }
+  section.on { display:block; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:12px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:end; }
+  label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--mut); }
+  input, select, textarea { background:var(--bg); border:1px solid var(--line); border-radius:6px; color:var(--ink); padding:7px 9px; font-size:13px; min-width:130px; }
+  textarea { width:100%; min-height:110px; font-family:ui-monospace,monospace; }
+  button.act { background:var(--acc); color:#08130b; border:none; border-radius:6px; padding:8px 14px; font-weight:600; cursor:pointer; }
+  button.ghost { background:none; border:1px solid var(--line); color:var(--mut); border-radius:6px; padding:7px 12px; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); font-size:13px; }
+  th { color:var(--mut); font-weight:500; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px; border:1px solid var(--line); color:var(--mut); }
+  .pill.ok { color:var(--acc); border-color:var(--acc); }
+  .pill.bad { color:var(--bad); border-color:var(--bad); }
+  .msg { color:var(--mut); font-size:13px; margin-top:8px; min-height:18px; }
+  video { width:100%; max-height:420px; background:#000; border-radius:8px; margin-top:10px; }
+  pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:12px; overflow-x:auto; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>GrowScope</h1>
+  <nav id="nav"></nav>
+  <span id="hastat" class="pill" style="margin-left:auto">...</span>
+</header>
+<main>
+
+<section id="tab-grows">
+  <div class="card">
+    <div class="row">
+      <label>Name<input id="g-name" placeholder="F1 Winter Run"></label>
+      <label>Room<input id="g-room" placeholder="F1"></label>
+      <label>Start date<input id="g-start" type="date"></label>
+      <label>Flip date<input id="g-flip" type="date"></label>
+      <button class="act" onclick="addGrow()">Add grow</button>
+    </div>
+    <div class="msg" id="g-msg"></div>
+  </div>
+  <div class="card"><table id="g-table"></table></div>
+</section>
+
+<section id="tab-cameras">
+  <div class="card">
+    <div class="row">
+      <label>Grow<select id="c-grow"></select></label>
+      <label>Camera<select id="c-entity"></select></label>
+      <label>Interval min<input id="c-int" type="number" value="10" min="1" style="min-width:80px"></label>
+      <label>Lights entity<input id="c-lights" list="gate-entities" placeholder="light.f1 or blank"></label>
+      <label>Window<input id="c-ws" type="time" style="min-width:90px"></label>
+      <label>to<input id="c-we" type="time" style="min-width:90px"></label>
+      <button class="act" onclick="addCam()">Bind camera</button>
+    </div>
+    <datalist id="gate-entities"></datalist>
+    <div class="msg">Gate order: lights entity beats window beats always-on. Frames only capture when the gate passes.</div>
+    <div class="msg" id="c-msg"></div>
+  </div>
+  <div class="card"><table id="c-table"></table></div>
+</section>
+
+<section id="tab-lapses">
+  <div class="card">
+    <div class="row">
+      <label>Grow<select id="l-grow"></select></label>
+      <button class="act" onclick="buildLapse()">Build now</button>
+      <span class="msg" id="l-msg"></span>
+    </div>
+    <div class="msg">Builds also run automatically each night at 00:15.</div>
+  </div>
+  <div class="card"><table id="l-table"></table><video id="l-video" controls style="display:none"></video></div>
+</section>
+
+<section id="tab-data">
+  <div class="card">
+    <b>InfluxDB</b>
+    <div class="msg">Point this at the InfluxDB app from the add-on store, or any InfluxDB container. v1 needs username and password, v2 needs org and token. Provision creates GrowScope's own database and touches nothing else.</div>
+    <div class="row" style="margin-top:8px">
+      <label>URL<input id="i-url" placeholder="http://a0d7b954-influxdb:8086" style="min-width:240px"></label>
+      <label>Database / bucket<input id="i-db"></label>
+      <label>Username<input id="i-user"></label>
+      <label>Password<input id="i-pass" type="password"></label>
+      <label>Org (v2)<input id="i-org"></label>
+      <label>Token (v2)<input id="i-token" type="password"></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="act" onclick="saveInflux()">Save and test</button>
+      <button class="ghost" onclick="provisionInflux()">Provision</button>
+      <span class="msg" id="i-msg"></span>
+    </div>
+  </div>
+  <div class="card">
+    <b>Recorded entities</b>
+    <div class="msg">One entity id per line. These get written to InfluxDB every 60 seconds - numbers as values, everything else (phases, valve states) as strings.</div>
+    <textarea id="r-entities" placeholder="sensor.f1_air_temp&#10;sensor.f1_rh&#10;sensor.crop_steering_phase_zone_1"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="act" onclick="saveRecorded()">Save</button>
+      <span class="msg" id="r-msg"></span>
+    </div>
+  </div>
+</section>
+
+<section id="tab-status">
+  <div class="card"><pre id="s-pre">loading..</pre></div>
+</section>
+
+</main>
+<script>
+const TABS = [["grows","Grows"],["cameras","Cameras"],["lapses","Timelapses"],["data","Data"],["status","Status"]];
+const $ = id => document.getElementById(id);
+const api = (path, opts) => fetch("api/" + path, opts).then(r => {
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+});
+const post = (path, body, method) => api(path, {method: method || "POST",
+  headers: {"Content-Type": "application/json"}, body: body ? JSON.stringify(body) : undefined});
+
+let grows = [], cams = [];
+
+function nav(which) {
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === "tab-" + which));
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === which));
+  if (which === "status") refreshStatus();
+}
+$("nav").innerHTML = TABS.map(([t, label]) => `<button data-t="${t}" onclick="nav('${t}')">${label}</button>`).join("");
+
+async function loadGrows() {
+  grows = await api("grows");
+  $("g-table").innerHTML = "<tr><th>Grow</th><th>Room</th><th>Day</th><th>Stage</th><th>Status</th><th></th></tr>" +
+    grows.map(g => `<tr>
+      <td>${g.name}</td><td>${g.room || ""}</td>
+      <td>${g.day ?? "?"}${g.flower_day ? " (flower " + g.flower_day + ")" : ""}</td>
+      <td><span class="pill ${g.stage === "flower" ? "ok" : ""}">${g.stage}</span></td>
+      <td>${g.status}</td>
+      <td style="text-align:right">
+        ${g.flip_date ? "" : `<button class="ghost" onclick="flipGrow(${g.id})">Flip today</button>`}
+        ${g.status === "active" ? `<button class="ghost" onclick="chopGrow(${g.id})">Chop</button>` : ""}
+        <button class="ghost" onclick="delGrow(${g.id})">Delete</button>
+      </td></tr>`).join("");
+  const opts = grows.filter(g => g.status === "active")
+    .map(g => `<option value="${g.id}">${g.name}</option>`).join("");
+  $("c-grow").innerHTML = opts;
+  $("l-grow").innerHTML = opts;
+}
+async function addGrow() {
+  if (!$("g-name").value || !$("g-start").value) { $("g-msg").textContent = "Name and start date are required."; return; }
+  await post("grows", {name: $("g-name").value, room: $("g-room").value,
+    start_date: $("g-start").value, flip_date: $("g-flip").value || null});
+  $("g-name").value = ""; $("g-msg").textContent = "Added.";
+  loadGrows();
+}
+const today = () => new Date().toISOString().slice(0, 10);
+async function flipGrow(id) { await post("grows/" + id, {flip_date: today()}, "PATCH"); loadGrows(); }
+async function chopGrow(id) { await post("grows/" + id, {chop_date: today(), status: "archived"}, "PATCH"); loadGrows(); }
+async function delGrow(id) {
+  if (!confirm("Delete this grow? Frames and timelapses on disk are kept.")) return;
+  await api("grows/" + id, {method: "DELETE"}); loadGrows();
+}
+
+async function loadCams() {
+  cams = await api("cameras");
+  const growName = id => (grows.find(g => g.id === id) || {name: "?"}).name;
+  $("c-table").innerHTML = "<tr><th>Grow</th><th>Camera</th><th>Every</th><th>Gate</th><th>Last capture</th><th></th></tr>" +
+    cams.map(c => `<tr>
+      <td>${growName(c.grow_id)}</td><td>${c.entity_id}</td><td>${c.interval_min}m</td>
+      <td>${c.lights_entity || (c.window_start ? c.window_start + "-" + c.window_end : "always")}</td>
+      <td>${c.last_capture_ts ? c.last_capture_ts.replace("T", " ") : "never"}</td>
+      <td style="text-align:right">
+        <button class="ghost" onclick="capNow(${c.id})">Capture now</button>
+        <button class="ghost" onclick="toggleCam(${c.id},${c.enabled ? 0 : 1})">${c.enabled ? "Disable" : "Enable"}</button>
+        <button class="ghost" onclick="delCam(${c.id})">Remove</button>
+      </td></tr>`).join("");
+}
+async function loadEntityPickers() {
+  try {
+    const cameras = await api("ha/entities?domains=camera");
+    $("c-entity").innerHTML = cameras.map(e => `<option value="${e.entity_id}">${e.name} (${e.entity_id})</option>`).join("")
+      || "<option value=''>no cameras found in HA</option>";
+    const gates = await api("ha/entities?domains=light,switch,binary_sensor,schedule,input_boolean");
+    $("gate-entities").innerHTML = gates.map(e => `<option value="${e.entity_id}">`).join("");
+  } catch (e) { $("c-msg").textContent = "Could not list HA entities - check the Status tab."; }
+}
+async function addCam() {
+  if (!$("c-grow").value || !$("c-entity").value) { $("c-msg").textContent = "Pick a grow and a camera."; return; }
+  await post("cameras", {grow_id: +$("c-grow").value, entity_id: $("c-entity").value,
+    interval_min: +$("c-int").value || 10, lights_entity: $("c-lights").value,
+    window_start: $("c-ws").value, window_end: $("c-we").value});
+  $("c-msg").textContent = "Bound."; loadCams();
+}
+async function capNow(id) {
+  $("c-msg").textContent = "Capturing..";
+  const r = await post("cameras/" + id + "/capture");
+  $("c-msg").textContent = r.ok ? "Captured." : "Failed: " + r.detail;
+  loadCams();
+}
+async function toggleCam(id, en) { await post("cameras/" + id, {enabled: en}, "PATCH"); loadCams(); }
+async function delCam(id) { await api("cameras/" + id, {method: "DELETE"}); loadCams(); }
+
+async function loadLapses() {
+  const list = await api("timelapses");
+  $("l-table").innerHTML = "<tr><th>File</th><th>Size</th><th>Updated</th><th></th></tr>" +
+    (list.length ? list.map(l => `<tr>
+      <td>${l.name}</td><td>${l.size_mb} MB</td><td>${l.modified.replace("T", " ")}</td>
+      <td style="text-align:right"><button class="ghost" onclick="playLapse('${l.name}')">Play</button></td>
+    </tr>`).join("") : "<tr><td colspan=4>No timelapses yet. Bind a camera, let it capture, then build.</td></tr>");
+}
+function playLapse(name) {
+  const v = $("l-video");
+  v.style.display = "block";
+  v.src = "media/timelapses/" + name;
+  v.play();
+}
+async function buildLapse() {
+  if (!$("l-grow").value) { $("l-msg").textContent = "Pick a grow."; return; }
+  $("l-msg").textContent = "Building..";
+  const r = await post("lapse/build/" + $("l-grow").value);
+  $("l-msg").textContent = r.detail;
+  loadLapses();
+}
+
+async function loadInflux() {
+  const c = await api("influx/config");
+  $("i-url").value = c.url; $("i-db").value = c.database;
+  $("i-user").value = c.username; $("i-pass").value = c.password;
+  $("i-org").value = c.org; $("i-token").value = c.token;
+}
+async function saveInflux() {
+  $("i-msg").textContent = "Testing..";
+  const r = await post("influx/config", {url: $("i-url").value, database: $("i-db").value,
+    username: $("i-user").value, password: $("i-pass").value,
+    org: $("i-org").value, token: $("i-token").value});
+  $("i-msg").textContent = (r.ok ? "Connected. " : "Failed: ") + r.detail + (r.version ? " (v" + r.version + ")" : "");
+}
+async function provisionInflux() {
+  $("i-msg").textContent = "Provisioning..";
+  const r = await post("influx/provision");
+  $("i-msg").textContent = r.detail;
+}
+async function loadRecorded() {
+  const r = await api("record/entities");
+  $("r-entities").value = r.entities.join("\n");
+}
+async function saveRecorded() {
+  const r = await post("record/entities", {entities: $("r-entities").value.split("\n")});
+  $("r-msg").textContent = "Saved " + r.entities.length + " entities.";
+}
+
+async function refreshStatus() {
+  try {
+    const s = await api("status");
+    $("s-pre").textContent = JSON.stringify(s, null, 2);
+    $("hastat").textContent = s.ha_connected ? "HA connected" : "HA unreachable";
+    $("hastat").className = "pill " + (s.ha_connected ? "ok" : "bad");
+  } catch (e) { $("s-pre").textContent = "Status fetch failed: " + e; }
+}
+
+(async () => {
+  nav("grows");
+  await loadGrows();
+  loadCams(); loadEntityPickers(); loadLapses(); loadInflux(); loadRecorded(); refreshStatus();
+  setInterval(refreshStatus, 30000);
+})();
+</script>
+</body>
+</html>

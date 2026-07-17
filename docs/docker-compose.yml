@@ -1,0 +1,28 @@
+# GrowScope for HA Core / Container users - engine plus InfluxDB in one stack.
+# Fill in GROWSCOPE_HA_URL and GROWSCOPE_HA_TOKEN, then: docker compose up -d
+# UI at http://<host>:8099. Point the Data tab at http://influxdb:8086.
+
+services:
+  growscope:
+    build: https://github.com/JakeTheRabbit/growscope.git#main:growscope
+    container_name: growscope
+    environment:
+      - GROWSCOPE_HA_URL=http://192.168.1.10:8123
+      - GROWSCOPE_HA_TOKEN=YOUR_LONG_LIVED_TOKEN
+    volumes:
+      - ./growscope-data:/data
+      - ./growscope-media:/media/growscope
+    ports:
+      - "8099:8099"
+    restart: unless-stopped
+    depends_on:
+      - influxdb
+
+  influxdb:
+    image: influxdb:1.8
+    container_name: growscope-influxdb
+    volumes:
+      - ./influxdb-data:/var/lib/influxdb
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
