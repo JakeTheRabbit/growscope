@@ -28,7 +28,7 @@ This is an early cut. It works, I run it, but expect rough edges and version-to-
 
 ## Screenshots
 
-Replay - two different rooms, two different calendar dates, the same flower day. This is the point of the whole app:
+Replay - the same room, two real runs three months apart, both sitting on flower day 31. The camera timestamps in-frame corroborate the sync. This is the point of the whole app:
 
 ![Replay](docs/screenshots/replay.png)
 
