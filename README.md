@@ -1,6 +1,7 @@
 # GrowScope
 
-![GrowScope](docs/media/hero-wide.jpg)
+![GrowScope](<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/6de23548-fb44-4ba4-951d-a0bfab62633f" />
+)
 
 Grow analytics for Home Assistant. Automatic timelapse capture from any camera entity, a proper grow registry, and full-resolution sensor recording to InfluxDB - so every run you finish becomes a reference you can hold the next one up against.
 
