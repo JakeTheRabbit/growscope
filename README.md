@@ -1,5 +1,7 @@
 # GrowScope
 
+![GrowScope](docs/media/hero-wide.jpg)
+
 Grow analytics for Home Assistant. Automatic timelapse capture from any camera entity, a proper grow registry, and full-resolution sensor recording to InfluxDB - so every run you finish becomes a reference you can hold the next one up against.
 
 Built because the existing options each do half the job. Crop steering tools decide when to shoot water but keep no memory. Grow journal apps want you to type everything in by hand. Grafana charts history but knows nothing about grows, days, or flips. GrowScope is the layer that remembers: what the environment did, what the plants looked like, on every day of every cycle.
@@ -22,6 +24,24 @@ Built because the existing options each do half the job. Crop steering tools dec
 Native sidebar panel with HA's own entity pickers (the ingress UI's pickers cover the function meanwhile), Lovelace cards, MQTT push capture, and built-in alert rules (point HA automations at the day/stage sensors instead). See [docs/PLAN.md](docs/PLAN.md) for where it is all headed.
 
 This is an early cut. It works, I run it, but expect rough edges and version-to-version movement until 1.0.
+
+## Screenshots
+
+Charts - a 79-day run with recipe targets (dashed), day grid, flip marker, and journal pins. Demo dataset:
+
+![Charts](docs/screenshots/charts.png)
+
+Grow registry with live day and stage counters, and the journal with auto-logged crop steering phase changes:
+
+![Grows](docs/screenshots/grows.png)
+
+![Journal](docs/screenshots/journal.png)
+
+Recipe editor - weekly setpoints anchored to flip - and the data setup:
+
+![Recipes](docs/screenshots/recipes.png)
+
+![Data](docs/screenshots/data.png)
 
 ## Install
 
