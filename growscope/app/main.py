@@ -47,6 +47,7 @@ async def ingress_guard(request: Request, call_next):
 app.include_router(api.router)
 config.ensure_dirs()  # must exist before the static mount is created
 app.mount("/media", StaticFiles(directory=str(config.MEDIA_DIR)), name="media")
+app.mount("/ui", StaticFiles(directory=str(_UI)), name="ui")
 
 
 @app.get("/")

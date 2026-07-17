@@ -13,7 +13,7 @@ import time
 
 import httpx
 
-from . import db, ha
+from . import db, ha, journal
 
 _LOG = logging.getLogger("influx")
 
@@ -142,9 +142,6 @@ def _field(state: str) -> str:
 
 
 async def write_states(states: list[dict]) -> bool:
-    cfg = config()
-    if not cfg["url"]:
-        return False
     ts = int(time.time())
     lines = []
     for s in states:
@@ -152,6 +149,14 @@ async def write_states(states: list[dict]) -> bool:
         if state in ("", "unknown", "unavailable"):
             continue
         lines.append(f"growscope,entity_id={_escape_tag(s['entity_id'])} {_field(state)} {ts}")
+    return await write_lines(lines)
+
+
+async def write_lines(lines: list[str]) -> bool:
+    """Write raw line-protocol points (each with its own timestamp in seconds)."""
+    cfg = config()
+    if not cfg["url"]:
+        return False
     if not lines:
         return True
     headers, params = _auth(cfg)
@@ -191,6 +196,7 @@ async def recorder_loop() -> None:
                     s = await ha.get_state(entity_id)
                     if s:
                         states.append({"entity_id": entity_id, "state": s.get("state", "")})
+                journal.observe(states)
                 await write_states(states)
             elif entities:
                 await test()

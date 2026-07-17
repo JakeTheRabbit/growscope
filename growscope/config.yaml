@@ -1,5 +1,5 @@
 name: GrowScope
-version: 0.1.0
+version: 0.2.0
 slug: growscope
 description: Grow analytics engine. Automatic timelapse capture from any HA camera, grow registry, sensor recording to InfluxDB.
 url: https://github.com/JakeTheRabbit/growscope
