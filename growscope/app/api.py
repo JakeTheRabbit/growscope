@@ -88,7 +88,7 @@ class EntityList(BaseModel):
 
 @router.get("/health")
 async def health():
-    return {"ok": True, "app": "growscope", "version": "0.2.0"}
+    return {"ok": True, "app": "growscope", "version": "0.2.1"}
 
 
 @router.get("/status")

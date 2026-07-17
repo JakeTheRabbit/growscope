@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1
+
+- Replay gets a proper timeline scrubber: canvas-drawn shared ruler in
+  cycle-day space (week labels, day ticks), one clip track per pane showing
+  actual footage coverage with gaps visible, the flip marker, photo and
+  journal pins on their grow's track, and a draggable playhead with progress
+  tint. Replaces the bare range slider and the separate pin rail.
+
 ## 0.2.0
 
 The analytics layer. Everything from the 0.1.0 "not in yet" list that ships as code:
