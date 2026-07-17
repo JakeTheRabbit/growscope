@@ -1,0 +1,83 @@
+flip:
+  name: Flip a grow
+  description: Set a grow's flip date (12/12). Defaults to today.
+  fields:
+    grow_id:
+      name: Grow ID
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    date:
+      name: Date
+      description: ISO date, defaults to today
+      selector:
+        date:
+
+chop:
+  name: Chop a grow
+  description: Set the chop date and archive the grow. Defaults to today.
+  fields:
+    grow_id:
+      name: Grow ID
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    date:
+      name: Date
+      selector:
+        date:
+
+log_event:
+  name: Log a journal event
+  description: Drop an event on a grow's timeline from an automation.
+  fields:
+    grow_id:
+      name: Grow ID
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    title:
+      name: Title
+      required: true
+      selector:
+        text:
+    kind:
+      name: Kind
+      selector:
+        select:
+          options: [note, feed, ipm, defoliation, training, res_change, state_change]
+    note:
+      name: Note
+      selector:
+        text:
+          multiline: true
+
+capture_now:
+  name: Capture a frame now
+  description: Trigger an immediate capture for a camera binding.
+  fields:
+    camera_id:
+      name: Camera binding ID
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+
+build_timelapse:
+  name: Build timelapse
+  description: Rebuild the current timelapse for a grow.
+  fields:
+    grow_id:
+      name: Grow ID
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box

@@ -6,9 +6,10 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, time as dtime
+from pathlib import Path
 
 from . import db, ha
-from .config import FRAMES_DIR
+from .config import FRAMES_DIR, MEDIA_DIR
 
 _LOG = logging.getLogger("capture")
 
@@ -49,13 +50,60 @@ def _due(cam: dict) -> bool:
     return elapsed >= cam["interval_min"] * 60
 
 
+async def _fetch_url(url: str) -> bytes | None:
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(url)
+        if resp.status_code == 200 and resp.content:
+            return resp.content
+        _LOG.warning("source url %s returned %s", url, resp.status_code)
+    except httpx.HTTPError as err:
+        _LOG.warning("source url fetch failed: %s", err)
+    return None
+
+
+def _ingest_watch_dir(cam: dict, grow: dict) -> int:
+    """Move new images from a watch folder into the frame store, dated by file mtime.
+    Covers SMB inboxes and anything that drops stills on disk."""
+    watch = Path(cam["watch_dir"])
+    if not watch.is_absolute():
+        watch = MEDIA_DIR / cam["watch_dir"]  # "inbox/f2" means /media/growscope/inbox/f2
+    if not watch.is_dir():
+        return 0
+    moved = 0
+    cam_slug = (cam["entity_id"] or "folder").split(".", 1)[-1] or "folder"
+    for f in sorted(watch.iterdir()):
+        if f.suffix.lower() not in (".jpg", ".jpeg", ".png") or not f.is_file():
+            continue
+        taken = datetime.fromtimestamp(f.stat().st_mtime)
+        day_dir = FRAMES_DIR / grow["slug"] / cam_slug / taken.strftime("%Y-%m-%d")
+        day_dir.mkdir(parents=True, exist_ok=True)
+        target = day_dir / f"{taken.strftime('%H%M%S')}_{f.name}"
+        try:
+            f.replace(target)
+            moved += 1
+        except OSError as err:
+            _LOG.warning("watch ingest failed for %s: %s", f, err)
+    if moved:
+        db.mark_captured(cam["id"])
+        status["captures"] += moved
+        _LOG.info("ingested %d frames from %s for %s", moved, watch, grow["name"])
+    return moved
+
+
 async def capture_one(cam: dict, grow: dict) -> bool:
-    jpeg = await ha.camera_jpeg(cam["entity_id"])
+    if cam.get("watch_dir"):
+        return _ingest_watch_dir(cam, grow) >= 0
+    if cam.get("source_url"):
+        jpeg = await _fetch_url(cam["source_url"])
+    else:
+        jpeg = await ha.camera_jpeg(cam["entity_id"])
     if not jpeg:
         status["errors"] += 1
-        status["last_error"] = f"{cam['entity_id']}: snapshot failed"
+        status["last_error"] = f"{cam['entity_id'] or cam.get('source_url')}: snapshot failed"
         return False
-    cam_slug = cam["entity_id"].split(".", 1)[-1]
+    cam_slug = (cam["entity_id"] or "url").split(".", 1)[-1] or "url"
     now = datetime.now()
     day_dir = FRAMES_DIR / grow["slug"] / cam_slug / now.strftime("%Y-%m-%d")
     day_dir.mkdir(parents=True, exist_ok=True)
@@ -79,13 +127,13 @@ async def tick() -> None:
 
 async def loop() -> None:
     if not ha.configured():
-        _LOG.warning("HA API not configured - capture scheduler idle. "
-                     "Standalone mode needs GROWSCOPE_HA_URL and GROWSCOPE_HA_TOKEN.")
+        _LOG.warning("HA API not configured - entity cameras and lights gates are off. "
+                     "URL and watch-folder sources still run. Standalone mode needs "
+                     "GROWSCOPE_HA_URL and GROWSCOPE_HA_TOKEN for the rest.")
     while True:
         try:
-            if ha.configured():
-                await tick()
-                status["last_tick"] = datetime.now().isoformat(timespec="seconds")
+            await tick()
+            status["last_tick"] = datetime.now().isoformat(timespec="seconds")
         except Exception:  # never let the loop die
             _LOG.exception("capture tick failed")
         await asyncio.sleep(30)

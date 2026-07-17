@@ -36,7 +36,36 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS journal (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grow_id INTEGER NOT NULL REFERENCES grows(id) ON DELETE CASCADE,
+    ts TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'note',
+    title TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    photo TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS recipes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    params TEXT NOT NULL DEFAULT '{}'
+);
+CREATE TABLE IF NOT EXISTS photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grow_id INTEGER NOT NULL REFERENCES grows(id) ON DELETE CASCADE,
+    ts TEXT NOT NULL,
+    path TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'upload'
+);
 """
+
+# Column additions for databases created by older versions. Errors mean the
+# column already exists - fine, ignore.
+_MIGRATIONS = (
+    "ALTER TABLE grows ADD COLUMN recipe_id INTEGER",
+    "ALTER TABLE cameras ADD COLUMN source_url TEXT DEFAULT ''",
+    "ALTER TABLE cameras ADD COLUMN watch_dir TEXT DEFAULT ''",
+)
 
 
 def _conn() -> sqlite3.Connection:
@@ -50,6 +79,11 @@ def _conn() -> sqlite3.Connection:
 def init() -> None:
     with _conn() as conn:
         conn.executescript(_SCHEMA)
+        for migration in _MIGRATIONS:
+            try:
+                conn.execute(migration)
+            except sqlite3.OperationalError:
+                pass  # column already there
 
 
 def slugify(name: str) -> str:
@@ -108,7 +142,7 @@ def add_grow(name: str, room: str, start_date: str, flip_date: str | None) -> di
 
 
 def update_grow(grow_id: int, fields: dict[str, Any]) -> dict | None:
-    allowed = {"name", "room", "start_date", "flip_date", "chop_date", "status"}
+    allowed = {"name", "room", "start_date", "flip_date", "chop_date", "status", "recipe_id"}
     sets = {k: (v or None) if k in ("flip_date", "chop_date") else v
             for k, v in fields.items() if k in allowed}
     if sets:
@@ -140,17 +174,20 @@ def camera(camera_id: int) -> dict | None:
 
 
 def add_camera(grow_id: int, entity_id: str, interval_min: int,
-               lights_entity: str, window_start: str, window_end: str) -> dict:
+               lights_entity: str, window_start: str, window_end: str,
+               source_url: str = "", watch_dir: str = "") -> dict:
     with _conn() as conn:
         cur = conn.execute(
-            "INSERT INTO cameras (grow_id, entity_id, interval_min, lights_entity, window_start, window_end)"
-            " VALUES (?,?,?,?,?,?)",
-            (grow_id, entity_id, interval_min, lights_entity, window_start, window_end))
+            "INSERT INTO cameras (grow_id, entity_id, interval_min, lights_entity, window_start,"
+            " window_end, source_url, watch_dir) VALUES (?,?,?,?,?,?,?,?)",
+            (grow_id, entity_id, interval_min, lights_entity, window_start, window_end,
+             source_url, watch_dir))
     return camera(cur.lastrowid)
 
 
 def update_camera(camera_id: int, fields: dict[str, Any]) -> dict | None:
-    allowed = {"entity_id", "interval_min", "lights_entity", "window_start", "window_end", "enabled"}
+    allowed = {"entity_id", "interval_min", "lights_entity", "window_start", "window_end",
+               "enabled", "source_url", "watch_dir"}
     sets = {k: v for k, v in fields.items() if k in allowed}
     if sets:
         cols = ", ".join(f"{k}=?" for k in sets)
@@ -186,3 +223,91 @@ def set_setting(key: str, value: Any) -> None:
         conn.execute("INSERT INTO settings (key, value) VALUES (?,?)"
                      " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                      (key, json.dumps(value)))
+
+
+# --- journal ---
+
+def journal(grow_id: int) -> list[dict]:
+    with _conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM journal WHERE grow_id=? ORDER BY ts", (grow_id,))]
+
+
+def add_journal(grow_id: int, ts: str, kind: str, title: str, note: str = "",
+                photo: str = "") -> dict:
+    with _conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO journal (grow_id, ts, kind, title, note, photo) VALUES (?,?,?,?,?,?)",
+            (grow_id, ts, kind, title, note, photo))
+        r = conn.execute("SELECT * FROM journal WHERE id=?", (cur.lastrowid,)).fetchone()
+    return dict(r)
+
+
+def delete_journal(entry_id: int) -> None:
+    with _conn() as conn:
+        conn.execute("DELETE FROM journal WHERE id=?", (entry_id,))
+
+
+# --- recipes ---
+
+def recipes() -> list[dict]:
+    with _conn() as conn:
+        rows = [dict(r) for r in conn.execute("SELECT * FROM recipes ORDER BY name")]
+    for r in rows:
+        r["params"] = json.loads(r["params"] or "{}")
+    return rows
+
+
+def recipe(recipe_id: int) -> dict | None:
+    with _conn() as conn:
+        r = conn.execute("SELECT * FROM recipes WHERE id=?", (recipe_id,)).fetchone()
+    if not r:
+        return None
+    out = dict(r)
+    out["params"] = json.loads(out["params"] or "{}")
+    return out
+
+
+def save_recipe(name: str, params: dict, recipe_id: int | None = None) -> dict:
+    blob = json.dumps(params)
+    with _conn() as conn:
+        if recipe_id:
+            conn.execute("UPDATE recipes SET name=?, params=? WHERE id=?", (name, blob, recipe_id))
+        else:
+            recipe_id = conn.execute("INSERT INTO recipes (name, params) VALUES (?,?)",
+                                     (name, blob)).lastrowid
+    return recipe(recipe_id)
+
+
+def delete_recipe(recipe_id: int) -> None:
+    with _conn() as conn:
+        conn.execute("DELETE FROM recipes WHERE id=?", (recipe_id,))
+
+
+# --- photos ---
+
+def photos(grow_id: int) -> list[dict]:
+    with _conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM photos WHERE grow_id=? ORDER BY ts", (grow_id,))]
+
+
+def add_photo(grow_id: int, ts: str, path: str, source: str = "upload") -> dict:
+    with _conn() as conn:
+        cur = conn.execute("INSERT INTO photos (grow_id, ts, path, source) VALUES (?,?,?,?)",
+                           (grow_id, ts, path, source))
+        r = conn.execute("SELECT * FROM photos WHERE id=?", (cur.lastrowid,)).fetchone()
+    return dict(r)
+
+
+def photo_exists(grow_id: int, path: str) -> bool:
+    with _conn() as conn:
+        return conn.execute("SELECT 1 FROM photos WHERE grow_id=? AND path=?",
+                            (grow_id, path)).fetchone() is not None
+
+
+def delete_photo(photo_id: int) -> dict | None:
+    with _conn() as conn:
+        r = conn.execute("SELECT * FROM photos WHERE id=?", (photo_id,)).fetchone()
+        conn.execute("DELETE FROM photos WHERE id=?", (photo_id,))
+    return dict(r) if r else None

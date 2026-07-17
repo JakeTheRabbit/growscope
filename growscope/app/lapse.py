@@ -9,6 +9,7 @@ makes side-by-side replay possible later.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import subprocess
 from datetime import datetime
@@ -29,21 +30,35 @@ _ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
 
 
 def _run(cmd: list[str]) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    except FileNotFoundError:
+        _LOG.error("ffmpeg not found on PATH - timelapse builds disabled")
+        return subprocess.CompletedProcess(cmd, 127, "", "ffmpeg not found")
 
 
 def _build_segment(day_dir: Path, seg_path: Path) -> bool:
-    frames = sorted(day_dir.glob("*.jpg"))
+    frames = sorted(list(day_dir.glob("*.jpg")) + list(day_dir.glob("*.jpeg"))
+                    + list(day_dir.glob("*.png")))
     if not frames:
         return False
     newest = max(f.stat().st_mtime for f in frames)
     if seg_path.exists() and seg_path.stat().st_mtime >= newest:
         return True  # up to date
     seg_path.parent.mkdir(parents=True, exist_ok=True)
-    framerate = max(len(frames) / SECONDS_PER_DAY, 1.0)
-    proc = _run(["ffmpeg", "-y", "-framerate", f"{framerate:.4f}",
-                 "-pattern_type", "glob", "-i", str(day_dir / "*.jpg"),
-                 *_ENCODE, str(seg_path)])
+    # Concat demuxer instead of glob input: portable across ffmpeg builds and
+    # gives the segment an exact SECONDS_PER_DAY duration regardless of frame count.
+    per_frame = SECONDS_PER_DAY / len(frames)
+    list_file = seg_path.with_suffix(".src.txt")
+    entries = ["ffconcat version 1.0"]
+    for f in frames:
+        entries.append(f"file '{f.as_posix()}'")
+        entries.append(f"duration {per_frame:.6f}")
+    entries.append(f"file '{frames[-1].as_posix()}'")  # concat quirk: last duration needs a trailing entry
+    list_file.write_text("\n".join(entries) + "\n")
+    proc = _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_file),
+                 *_ENCODE, "-fps_mode", "vfr", str(seg_path)])
+    list_file.unlink(missing_ok=True)
     if proc.returncode != 0:
         _LOG.error("segment %s failed: %s", seg_path.name, proc.stderr[-400:])
         seg_path.unlink(missing_ok=True)
@@ -81,6 +96,18 @@ def build_grow(grow: dict) -> list[str]:
         out_path = LAPSES_DIR / f"{grow['slug']}_{cam_dir.name}_current.mp4"
         if _concat(segments, out_path):
             built.append(out_path.name)
+            # Manifest is what lets Replay map video time to grow day exactly,
+            # including days with no frames (they simply are not in the video).
+            manifest = {
+                "grow": grow["slug"],
+                "grow_id": grow["id"],
+                "camera": cam_dir.name,
+                "seconds_per_day": SECONDS_PER_DAY,
+                "start_date": grow["start_date"],
+                "flip_date": grow.get("flip_date"),
+                "days": [s.stem for s in segments],
+            }
+            out_path.with_suffix(".json").write_text(json.dumps(manifest))
     return built
 
 
@@ -99,8 +126,15 @@ def list_timelapses() -> list[dict]:
     out = []
     for f in sorted(LAPSES_DIR.glob("*.mp4")):
         stat = f.stat()
-        out.append({"name": f.name, "size_mb": round(stat.st_size / 1e6, 1),
-                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")})
+        item = {"name": f.name, "size_mb": round(stat.st_size / 1e6, 1),
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")}
+        manifest = f.with_suffix(".json")
+        if manifest.exists():
+            try:
+                item["manifest"] = json.loads(manifest.read_text())
+            except (OSError, ValueError):
+                pass
+        out.append(item)
     return out
 
 

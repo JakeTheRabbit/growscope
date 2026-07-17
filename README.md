@@ -4,17 +4,22 @@ Grow analytics for Home Assistant. Automatic timelapse capture from any camera e
 
 Built because the existing options each do half the job. Crop steering tools decide when to shoot water but keep no memory. Grow journal apps want you to type everything in by hand. Grafana charts history but knows nothing about grows, days, or flips. GrowScope is the layer that remembers: what the environment did, what the plants looked like, on every day of every cycle.
 
-## What it does today (0.1.0)
+## What it does today (0.2.0)
 
 - **Automatic timelapse.** Bind a camera entity to a grow and the engine snapshots it on your interval, gated to lights-on (a lights entity or a fixed window - it will not fill your disk with dark frames). Each day gets encoded as its own small segment, and the current timelapse is a concat of segments - always up to date to the most recent frame, rebuilt in seconds, never a full re-encode.
 - **Day-normalized video.** Every grow day is the same number of seconds of footage, so day 30 sits at the same timestamp in every grow's timelapse. This is the groundwork for side-by-side replay.
 - **Grow registry.** Name, room, start date, flip date, chop date. Day and flower-day counters computed for you and exposed to HA as sensors through the companion integration - `sensor.<grow>_day` in an automation is one click away.
 - **Sensor recording.** Point it at your InfluxDB, list the entities you care about, and they get recorded every 60 seconds at full resolution - numbers as values, text states (crop steering phases, valve states) as strings. HA's own recorder purges raw data after about 10 days by default and keeps hourly averages, which flattens drybacks and hides irrigation shots. GrowScope keeps the real signal for the life of the grow.
+- **Charts with recipe targets.** Any recorded entities on one chart - room temp next to hallway temp next to outside temp if that is the correlation you are chasing. Day gridlines anchored to the grow, flip marked, drag to zoom, crosshair readout. Build a recipe (weekly setpoints anchored to flip) and the targets draw as dashed step-lines over the measured data, so on-recipe or off-recipe is visible at a glance. Phase bands from crop steering state sensors render behind the series.
+- **Replay.** Two grows side by side on the same day-of-cycle clock, aligned by flip (flower day 1 = flower day 1) or by start. The video is the clock - the day is derived from the timelapse manifest, nothing corrects the master backwards, so the stutter-and-rewind failure mode of naive sync is structurally impossible. Scrub one bar, both panes and the day badges follow.
+- **Journal and photos on the timeline.** Log feeds, IPM, training - or let auto-journal do it: watch a crop steering phase sensor and every phase change lands on the timeline by itself. Photos upload with their real EXIF capture times, pin onto the replay rail, and a pin click shows both grows' nearest photos side by side. Immich sync pulls an album per grow off your phone hands-free.
+- **Grow bundles.** Export a finished grow as one zip - registry, journal, recipe, photos, series export, timelapses. Import someone else's and replay your run against it. This is how a good run stops living in one grower's memory.
+- **Automation surface.** Services (growscope.flip, chop, log_event, capture_now, build_timelapse), a growscope_stage_changed event on the bus, and per-grow day/stage sensors - NFC tag on the tent that logs an IPM check is an automation away.
 - **Runs anywhere.** HA OS and Supervised get an add-on with ingress. HA Core and Container users run the same engine as a plain Docker container.
 
 ## What it does not do yet
 
-The plan is bigger than the build. Coming per [docs/PLAN.md](docs/PLAN.md), roughly in order: native sidebar panel with real HA entity pickers, charts with recipe target lines, side-by-side replay of two grows on the same day-of-cycle clock, photos and journal on the timeline, crop steering overlays, grow bundle export. Watch releases if you want to know when.
+Native sidebar panel with HA's own entity pickers (the ingress UI's pickers cover the function meanwhile), Lovelace cards, MQTT push capture, and built-in alert rules (point HA automations at the day/stage sensors instead). See [docs/PLAN.md](docs/PLAN.md) for where it is all headed.
 
 This is an early cut. It works, I run it, but expect rough edges and version-to-version movement until 1.0.
 

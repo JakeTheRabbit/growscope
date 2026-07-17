@@ -14,10 +14,12 @@ GrowScope does not ship a database. Your data lives in a database you own.
 ## Setup
 
 1. Start the add-on. Open the GrowScope panel in the sidebar.
-2. Data tab - enter your InfluxDB URL and credentials, hit Test, then Provision. GrowScope creates its own database and never touches anything else.
+2. Data tab - enter your InfluxDB URL and credentials, hit Test, then Provision. GrowScope creates its own database and never touches anything else. List your recorded entities (one per line) and hit Backfill to pull whatever raw history HA still holds.
 3. Grows tab - add a grow. Name, room, start date. Set the flip date when you flip.
-4. Cameras tab - bind a camera entity to the grow. Set the capture interval and either a lights entity or a fixed lights-on window. Frames only get captured when the lights are on.
+4. Cameras tab - bind a camera entity, a source URL (Frigate latest.jpg, ESP cam), or a watch folder to the grow. Set the capture interval and either a lights entity or a fixed lights-on window. Frames only get captured when the lights are on.
 5. Timelapses tab - hit Build, or wait for the nightly build. The current timelapse always runs up to the most recent frame.
+6. Charts tab - pick the grow, add entities, Load. Assign a recipe (Recipes tab) and targets draw over the data.
+7. Replay tab - once two grows have timelapses, put them side by side aligned by flip. Journal and photo pins sit on the rail under the videos.
 
 ## Options
 

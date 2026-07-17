@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.0
+
+The analytics layer. Everything from the 0.1.0 "not in yet" list that ships as code:
+
+- Charts tab: canvas chart engine - any recorded entities on one chart, per-unit axes, crosshair readout, drag-zoom, day gridlines anchored to the grow with the flip marked
+- Recipes: weekly setpoint curves anchored to flip, editor grid, assign to grows, targets drawn as dashed step-lines on charts
+- Replay tab: two grows side by side on the same day-of-cycle clock, aligned by flip or by start. The master video is the clock - day comes from the lapse manifest, so drift and backward jumps are structurally impossible
+- Timelapse manifests: every build writes a day map next to the mp4 - replay handles missing days exactly
+- Journal: manual entries, kinds, and auto-journal watches - a watched entity's state change (crop steering phase moves) lands on the timeline by itself
+- Photos: multi-file upload with pure-python EXIF capture-time extraction, thumbnails on the Journal tab, pins on the replay rail, click a pin to compare both grows' nearest photos side by side
+- Phase bands on charts from recorded string states, journal and photo pins on charts
+- History API over InfluxDB v1 (InfluxQL) and v2 (Flux), autodetected
+- Backfill: pull whatever raw history HA's recorder still holds into Influx so charts start populated
+- Capture sources beyond camera entities: direct URL (Frigate latest.jpg, ESP cams) and watch folders (SMB inboxes)
+- Grow bundles: export a grow as one zip (registry, journal, recipe, photos, series, timelapses), import someone else's and replay against it
+- Immich: album-per-grow sync with real capture times
+- Integration services: growscope.flip, chop, log_event, capture_now, build_timelapse - and a growscope_stage_changed event on the HA bus
+
+Still not in: native sidebar panel with HA's own entity pickers (ingress UI covers it meanwhile), Lovelace cards, MQTT push capture, alert rules (use the day/stage sensors in HA automations).
+
+## 0.1.0
+
 ## 0.1.0
 
 First public cut. The engine core:
