@@ -328,7 +328,9 @@ async function addGrow() {
   $("g-name").value = ""; $("g-msg").textContent = "Added.";
   loadGrows();
 }
-const today = () => new Date().toISOString().slice(0, 10);
+const pad2 = n => String(n).padStart(2, "0");
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const nowLocal = () => { const d = new Date(); return `${today()}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
 async function flipGrow(id) { await post("grows/" + id, {flip_date: today()}, "PATCH"); loadGrows(); }
 async function chopGrow(id) { await post("grows/" + id, {chop_date: today(), status: "archived"}, "PATCH"); loadGrows(); }
 async function delGrow(id) {
@@ -472,7 +474,7 @@ async function loadJournal() {
 async function addJournal() {
   const gid = +$("j-grow").value;
   if (!gid || !$("j-title").value) { $("j-msg").textContent = "Grow and title required."; return; }
-  const ts = $("j-ts").value || new Date().toISOString().slice(0, 16);
+  const ts = $("j-ts").value || nowLocal();
   await post("journal", {grow_id: gid, ts, kind: $("j-kind").value,
     title: $("j-title").value, note: $("j-note").value});
   $("j-title").value = ""; $("j-note").value = ""; $("j-msg").textContent = "Logged.";

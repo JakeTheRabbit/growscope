@@ -33,7 +33,10 @@ const GSReplay = (() => {
     const anchor = (state.align === "flip" && g.flip_date) ? g.flip_date : g.start_date;
     const d = new Date(anchor + "T00:00:00");
     d.setDate(d.getDate() + (pos - 1));
-    return d.toISOString().slice(0, 10);
+    // Format in LOCAL time - toISOString() shifts to UTC and lands a day early
+    // for anyone east of Greenwich, which desyncs the follower by one day.
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
   function nearestIdx(days, dateStr) {

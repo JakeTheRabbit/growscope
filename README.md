@@ -28,6 +28,10 @@ This is an early cut. It works, I run it, but expect rough edges and version-to-
 
 ## Screenshots
 
+Replay - two different rooms, two different calendar dates, the same flower day. This is the point of the whole app:
+
+![Replay](docs/screenshots/replay.png)
+
 Charts - a 79-day run with recipe targets (dashed), day grid, flip marker, and journal pins. Demo dataset:
 
 ![Charts](docs/screenshots/charts.png)
