@@ -8,14 +8,12 @@ arch:
   - amd64
 init: false
 ingress: true
-ingress_port: 8099
 panel_icon: mdi:sprout
 panel_title: GrowScope
 homeassistant_api: true
 map:
   - type: media
     read_only: false
-backup: hot
 options:
   log_level: info
   seconds_per_day: 2.0
