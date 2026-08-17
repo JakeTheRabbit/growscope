@@ -1,5 +1,7 @@
 # GrowScope
 
+> **This repo is free. My 2am dryback debugging is not.** If it saved you a crop, a weekend, or a nervous breakdown — [buy the rabbit a bag of nutes](https://github.com/sponsors/JakeTheRabbit). If it didn't, keep your money. I respect a tight nutrient budget.
+
 <img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/f5d89a48-a936-40b5-8228-ebb8233412c2" />
 
 
@@ -93,5 +95,3 @@ Issues and PRs welcome. Read [docs/PLAN.md](docs/PLAN.md) first so you know wher
 ## License
 
 MIT.
-
-> **This repo is free. My 2am dryback debugging is not.** If it saved you a crop, a weekend, or a nervous breakdown — [buy the rabbit a bag of nutes](https://github.com/sponsors/JakeTheRabbit). If it didn't, keep your money. I respect a tight nutrient budget.
